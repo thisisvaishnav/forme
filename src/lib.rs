@@ -1,18 +1,29 @@
-#![cfg(target_arch = "wasm32")]
-
-mod app;
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+mod geometry;
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 mod model;
+
+#[cfg(target_arch = "wasm32")]
+mod app;
+#[cfg(target_arch = "wasm32")]
 mod render;
 
+#[cfg(target_arch = "wasm32")]
 use std::cell::RefCell;
+#[cfg(target_arch = "wasm32")]
 use std::rc::Rc;
 
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
+#[cfg(target_arch = "wasm32")]
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
 
+#[cfg(target_arch = "wasm32")]
 use crate::app::App;
 
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn start() -> Result<(), JsValue> {
     console_error_panic_hook::set_once();

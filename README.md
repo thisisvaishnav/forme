@@ -128,6 +128,12 @@ connects to `/ws?room=<room>` and exchanges element patches, peer information,
 and cursor positions. The server keeps rooms in memory and does not persist
 them. Live connections reconnect automatically with exponential backoff.
 
+## Rendering
+
+Freehand points are simplified in Rust when a stroke ends. The canvas also
+skips elements outside the viewport. Strokes keep their endpoints and corners,
+and large scenes spend less time on offscreen work.
+
 ## Deploy to Vercel
 
 The repository includes `Dockerfile.vercel`. Vercel builds it as a Container
@@ -167,6 +173,7 @@ a shared store such as Redis for cross-instance state and pub/sub.
 ├── src/
 │   ├── app.rs           # UI, canvas interaction, storage, WebSocket client
 │   ├── bin/serve.rs     # Static server and WebSocket collaboration server
+│   ├── geometry.rs      # Stroke simplification and viewport tests
 │   ├── lib.rs           # WASM entry point
 │   ├── model.rs         # Scene and element types
 │   └── render.rs        # Canvas and SVG rendering

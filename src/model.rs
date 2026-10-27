@@ -172,6 +172,14 @@ impl Element {
         }
     }
 
+    pub fn sync_bounds(&mut self) {
+        let bounds = self.bounds();
+        self.x = bounds.x;
+        self.y = bounds.y;
+        self.w = bounds.w;
+        self.h = bounds.h;
+    }
+
     pub fn translate(&mut self, dx: f64, dy: f64) {
         self.x += dx;
         self.y += dy;
@@ -283,4 +291,20 @@ pub fn dist_to_segment(p: Pt, a: Pt, b: Pt) -> f64 {
     let cx = a.x + t * dx;
     let cy = a.y + t * dy;
     ((p.x - cx).powi(2) + (p.y - cy).powi(2)).sqrt()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sync_bounds_tracks_freehand_points() {
+        let mut element = Element::new(1, Kind::Draw, 0.0, 0.0, Style::default(), 7);
+        element.points = vec![Pt::new(10.0, 20.0), Pt::new(15.0, 32.0)];
+        element.sync_bounds();
+        assert_eq!(element.x, 10.0);
+        assert_eq!(element.y, 20.0);
+        assert_eq!(element.w, 5.0);
+        assert_eq!(element.h, 12.0);
+    }
 }

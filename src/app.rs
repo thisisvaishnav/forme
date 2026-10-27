@@ -15,6 +15,7 @@ use web_sys::{
     PointerEvent, WebSocket, WheelEvent, Window,
 };
 
+use crate::geometry::simplify_stroke;
 use crate::model::{dist_to_segment, Element, Fill, History, Kind, Pt, Rect, Style, Tool};
 use crate::render::{self, View, FONT};
 
@@ -1004,10 +1005,20 @@ impl App {
                     self.tool = Tool::Select;
                 }
             }
-            Drag::Move { before, .. }
-            | Drag::Resize { before, .. }
-            | Drag::Erase { before }
-            | Drag::Draw { before, .. } => {
+            Drag::Draw { id, before } => {
+                if let Some(el) = self.elements.iter_mut().find(|e| e.id == id) {
+                    if el.points.len() > 2 {
+                        let tolerance = (0.6 / self.zoom).clamp(0.1, 1.5);
+                        el.points = simplify_stroke(&el.points, tolerance);
+                        el.sync_bounds();
+                    }
+                }
+                if self.elements != before {
+                    self.history.push(before);
+                    self.save();
+                }
+            }
+            Drag::Move { before, .. } | Drag::Resize { before, .. } | Drag::Erase { before } => {
                 if self.elements != before {
                     self.history.push(before);
                     self.save();

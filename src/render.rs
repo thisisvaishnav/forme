@@ -4,6 +4,7 @@ use js_sys::Array;
 use wasm_bindgen::JsValue;
 use web_sys::{CanvasRenderingContext2d, HtmlImageElement};
 
+use crate::geometry::{is_visible, viewport_rect};
 use crate::model::{Element, Fill, Kind, Pt, Rect};
 
 pub const FONT: &str = "Caveat, 'Comic Sans MS', 'Segoe Print', cursive";
@@ -44,7 +45,12 @@ pub fn render_scene(
         draw_grid(ctx, view);
     }
 
+    let view_bounds = viewport_rect(view.pan, view.zoom, view.w, view.h);
+    let cull_margin = 12.0 / view.zoom.max(0.01);
     for element in elements {
+        if !is_visible(element.bounds(), view_bounds, cull_margin) {
+            continue;
+        }
         draw_element(ctx, element, images);
     }
 
