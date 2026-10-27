@@ -141,6 +141,25 @@ svg {
   background: #d7d7d7;
 }
 
+.github-link {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  color: #555;
+  border-left: 1px solid #e3e3e3;
+  text-decoration: none;
+}
+
+.github-link:hover {
+  background: var(--hover);
+  color: #111;
+}
+
+.github-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 .window-controls {
   display: flex;
   flex: 0 0 auto;
