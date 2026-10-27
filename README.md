@@ -16,6 +16,14 @@ Forme is a browser whiteboard with a paint-inspired ribbon interface. It runs
 entirely in the browser, saves your work locally, exports PNG, SVG, and JSON,
 and supports live collaboration over WebSockets.
 
+<p align="center">
+  <img src="assets/live-demo.gif" alt="Two browsers drawing together in the same live Forme room" width="100%">
+</p>
+
+<p align="center">
+  Two browsers in the same room. Every stroke and cursor appears live in both.
+</p>
+
 ## Features
 
 - **Drawing tools**: select, hand/pan, brush, line, rectangle, ellipse, diamond,
