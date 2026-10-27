@@ -247,9 +247,8 @@ fn draw_element(
         if let Some(img) = images.get(&e.src) {
             if img.complete() && img.natural_width() > 0 {
                 let r = e.bounds();
-                let _ = ctx.draw_image_with_html_image_element_and_dw_and_dh(
-                    img, r.x, r.y, r.w, r.h,
-                );
+                let _ =
+                    ctx.draw_image_with_html_image_element_and_dw_and_dh(img, r.x, r.y, r.w, r.h);
             }
         }
         return;
@@ -336,7 +335,8 @@ fn draw_freehand(ctx: &CanvasRenderingContext2d, points: &[Pt]) {
     }
     ctx.begin_path();
     if points.len() == 1 {
-        ctx.arc(points[0].x, points[0].y, 1.0, 0.0, std::f64::consts::TAU).ok();
+        ctx.arc(points[0].x, points[0].y, 1.0, 0.0, std::f64::consts::TAU)
+            .ok();
         ctx.fill();
         return;
     }

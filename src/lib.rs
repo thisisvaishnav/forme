@@ -30,17 +30,14 @@ pub fn start() -> Result<(), JsValue> {
         .ok_or_else(|| JsValue::from_str("no 2d context"))?
         .dyn_into::<CanvasRenderingContext2d>()?;
 
-    let app = Rc::new(RefCell::new(App::new(
-        window,
-        document,
-        canvas,
-        ctx,
-    )));
+    let app = Rc::new(RefCell::new(App::new(window, document, canvas, ctx)));
 
+    app.borrow_mut().attach(&app);
     App::install(&app)?;
     app.borrow_mut().load(&app);
     app.borrow_mut().draw();
     app.borrow_mut().sync_ui();
+    app.borrow_mut().start_if_room();
 
     Ok(())
 }

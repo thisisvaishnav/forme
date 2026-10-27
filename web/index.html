@@ -11,142 +11,223 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%236965db'/><path d='M9 22l7-13 7 13' stroke='white' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
 </head>
 <body>
-  <canvas id="board"></canvas>
+  <div class="app">
+    <header class="titlebar">
+      <div class="title-drag">
+        <span class="paint-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4h7l2.4 2.4H20V20H4z" fill="#ffd8a8" stroke="#8a5a20"/>
+            <path d="M9.2 13.6l5.6-5.6 2.2 2.2-5.6 5.6-2.8.6z" fill="#4dabf7" stroke="#1c6fb0"/>
+          </svg>
+        </span>
+        <span class="doc-title">Untitled - Paint</span>
+        <div class="qat" role="toolbar" aria-label="Quick actions">
+          <button class="qat-btn" data-action="save" title="Save to file (Ctrl+S)" aria-label="Save">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v6h7V4"/><path d="M8 20v-6h8v6"/></svg>
+          </button>
+          <button id="undo" class="qat-btn" title="Undo (Ctrl+Z)" aria-label="Undo">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7L4 12l5 5"/><path d="M4 12h9a6 6 0 0 1 6 6"/></svg>
+          </button>
+          <button id="redo" class="qat-btn" title="Redo (Ctrl+Shift+Z)" aria-label="Redo">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7l5 5-5 5"/><path d="M20 12h-9a6 6 0 0 0-6 6"/></svg>
+          </button>
+          <button id="collab" class="qat-btn" title="Edit together live" aria-label="Live collaboration">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9.5" r="2.3"/><path d="M15.2 14.4A4.2 4.2 0 0 1 20.5 18"/></svg>
+          </button>
+          <span class="qat-sep"></span>
+          <button id="lock" class="qat-btn" title="Keep tool active after drawing" aria-label="Keep tool active">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="1"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+          </button>
+          <button id="share" class="qat-btn" title="Copy a link with this drawing" aria-label="Share">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M5 13v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6"/></svg>
+          </button>
+          <button id="help-btn" class="qat-btn" title="Help" aria-label="Help">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.6 2.3c-.7.4-1.2 1-1.2 1.8"/><path d="M12 17h.01"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="window-controls" aria-hidden="true">
+        <span>—</span><span>▢</span><span class="win-close">×</span>
+      </div>
+    </header>
 
-  <button id="menu-btn" class="floating menu-btn" aria-label="Menu" title="Menu">
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-  </button>
+    <nav class="tabs" aria-label="Ribbon tabs">
+      <button id="menu-btn" class="ribbon-tab file-tab">File</button>
+      <button id="home-tab" class="ribbon-tab active" data-default-tab="true">Home</button>
+      <button id="more-btn" class="ribbon-tab">View</button>
+    </nav>
 
-  <div class="toolbar" role="toolbar" aria-label="Drawing tools">
-    <button id="lock" class="tool" title="Keep tool active after drawing">
-      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
-    </button>
-    <span class="sep"></span>
-    <button class="tool" data-tool="hand" title="Hand — pan (H)">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12V6.5a1.5 1.5 0 0 1 3 0V12"/><path d="M11 11.5V5.5a1.5 1.5 0 0 1 3 0V12"/><path d="M14 11.5V7a1.5 1.5 0 0 1 3 0v7.2a5.3 5.3 0 0 1-5.3 5.3h-1.1a5 5 0 0 1-3.9-1.9l-2.3-3a1.6 1.6 0 0 1 2.4-2.1L8 14"/></svg>
-    </button>
-    <button class="tool active" data-tool="select" title="Selection (V)">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5l13.5 7.6-6.1 1.7L9.7 19z"/></svg>
-    </button>
-    <button class="tool" data-tool="rectangle" title="Rectangle (R)">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5.5" width="16" height="13" rx="1.5"/></svg>
-    </button>
-    <button class="tool" data-tool="diamond" title="Diamond (D)">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2l8.8 8.8-8.8 8.8L3.2 12z"/></svg>
-    </button>
-    <button class="tool" data-tool="ellipse" title="Ellipse (O)">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.4"/></svg>
-    </button>
-    <button class="tool" data-tool="arrow" title="Arrow (A)">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L20 4"/><path d="M20 4h-6.5M20 4v6.5"/></svg>
-    </button>
-    <button class="tool" data-tool="line" title="Line (L)">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4.5 19.5L19.5 4.5"/></svg>
-    </button>
-    <button class="tool" data-tool="draw" title="Draw (P)">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4.2-1 11-11a2.1 2.1 0 0 0-3-3l-11 11z"/><path d="M13.5 6.5l3 3"/></svg>
-    </button>
-    <button class="tool" data-tool="text" title="Text (T)">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 6.5h14M12 6.5V19M9 19h6"/></svg>
-    </button>
-    <button class="tool" data-tool="image" title="Insert image (I)">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="8.5" cy="9.5" r="1.4"/><path d="M20.5 15.5l-5-5-6.5 6.5"/></svg>
-    </button>
-    <button class="tool" data-tool="eraser" title="Eraser (E)">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 20l-4-4a2 2 0 0 1 0-2.8l8-8a2 2 0 0 1 2.8 0l4.4 4.4a2 2 0 0 1 0 2.8l-6 6z"/><path d="M10 7.5l6.5 6.5"/><path d="M9 20h11"/></svg>
-    </button>
-    <span class="sep"></span>
-    <button id="more-btn" class="tool" title="More">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="12" cy="5.5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="18.5" r="1.5"/></svg>
-    </button>
-  </div>
+    <div class="ribbon" id="ribbon" role="toolbar" aria-label="Paint tools">
+      <div class="group">
+        <div class="group-body clipboard-body">
+          <button class="ribbon-btn tall" data-action="paste" title="Paste (Ctrl+V)">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6v3H9z"/><path d="M15 5h3v15H6V5h3"/><path d="M9 11h6M9 15h4"/></svg>
+            <span>Paste</span>
+          </button>
+          <div class="col">
+            <button class="ribbon-btn row" data-action="cut" title="Cut (Ctrl+X)">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="17" r="2.4"/><circle cx="17" cy="17" r="2.4"/><path d="M8.6 15.2L18 4M15.4 15.2L6 4"/></svg>
+              <span>Cut</span>
+            </button>
+            <button class="ribbon-btn row" data-action="copy" title="Copy (Ctrl+C)">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="11" height="12"/><path d="M16 8V4H5v12h3"/></svg>
+              <span>Copy</span>
+            </button>
+          </div>
+        </div>
+        <div class="group-label">Clipboard</div>
+      </div>
 
-  <div id="hint" class="hint">
-    To move canvas, hold <kbd>Scroll wheel</kbd> or <kbd>Space</kbd> while dragging, or use the hand tool
-  </div>
+      <div class="group">
+        <div class="group-body">
+          <button class="tool ribbon-btn" data-tool="select" title="Selection (V)">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5l13.5 7.6-6.1 1.7L9.7 19z"/></svg>
+            <span>Select</span>
+          </button>
+          <button class="tool ribbon-btn" data-tool="image" title="Insert image (I)">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15"/><circle cx="8.5" cy="9.5" r="1.4"/><path d="M20.5 15.5l-5-5-6.5 6.5"/></svg>
+            <span>Insert</span>
+          </button>
+        </div>
+        <div class="group-label">Image</div>
+      </div>
 
-  <div class="top-right">
-    <button id="share" class="share" title="Copy a link with this drawing">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M5 13v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6"/></svg>
-      Share
-    </button>
-    <button id="help-btn" class="round-btn" title="Help">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.6 2.3c-.7.4-1.2 1-1.2 1.8"/><path d="M12 17h.01"/></svg>
-    </button>
-  </div>
+      <div class="group">
+        <div class="group-body">
+          <button class="tool ribbon-btn" data-tool="text" title="Text (T)">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 6.5h14M12 6.5V19M9 19h6"/></svg>
+            <span>Text</span>
+          </button>
+          <button class="tool ribbon-btn" data-tool="eraser" title="Eraser (E)">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 20l-4-4a2 2 0 0 1 0-2.8l8-8a2 2 0 0 1 2.8 0l4.4 4.4a2 2 0 0 1 0 2.8l-6 6z"/><path d="M10 7.5l6.5 6.5"/><path d="M9 20h11"/></svg>
+            <span>Eraser</span>
+          </button>
+          <button class="tool ribbon-btn" data-tool="hand" title="Hand — pan (H)">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12V6.5a1.5 1.5 0 0 1 3 0V12"/><path d="M11 11.5V5.5a1.5 1.5 0 0 1 3 0V12"/><path d="M14 11.5V7a1.5 1.5 0 0 1 3 0v7.2a5.3 5.3 0 0 1-5.3 5.3h-1.1a5 5 0 0 1-3.9-1.9l-2.3-3a1.6 1.6 0 0 1 2.4-2.1L8 14"/></svg>
+            <span>Pan</span>
+          </button>
+          <div class="col tiny-col" aria-label="Text size">
+            <button data-font="16" class="mini" title="Small text">S</button>
+            <button data-font="20" class="mini active" title="Medium text">M</button>
+            <button data-font="28" class="mini" title="Large text">L</button>
+          </div>
+        </div>
+        <div class="group-label">Tools</div>
+      </div>
 
-  <div class="bottom-left">
-    <div class="pill zoom-pill">
-      <button id="zoom-out" class="pill-btn" title="Zoom out">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14"/></svg>
-      </button>
-      <span id="zoom-label">100%</span>
-      <button id="zoom-in" class="pill-btn" title="Zoom in">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg>
-      </button>
-      <button id="zoom-reset" class="pill-btn" title="Zoom to fit">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/></svg>
-      </button>
-    </div>
-    <div class="pill">
-      <button id="undo" class="pill-btn" title="Undo (Ctrl+Z)">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7L4 12l5 5"/><path d="M4 12h9a6 6 0 0 1 6 6"/></svg>
-      </button>
-      <button id="redo" class="pill-btn" title="Redo (Ctrl+Shift+Z)">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7l5 5-5 5"/><path d="M20 12h-9a6 6 0 0 0-6 6"/></svg>
-      </button>
-    </div>
-  </div>
+      <div class="group">
+        <div class="group-body">
+          <button class="tool ribbon-btn compact" data-tool="draw" data-width="1" title="Thin brush (P)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4.2-1 11-11a2.1 2.1 0 0 0-3-3l-11 11z"/><path d="M13.5 6.5l3 3"/></svg>
+            <span>1 px</span>
+          </button>
+          <button class="tool ribbon-btn compact active" data-tool="draw" data-width="2" title="Medium brush (P)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4.2-1 11-11a2.1 2.1 0 0 0-3-3l-11 11z"/><path d="M13.5 6.5l3 3"/></svg>
+            <span>2 px</span>
+          </button>
+          <button class="tool ribbon-btn compact" data-tool="draw" data-width="4" title="Thick brush (P)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4.2-1 11-11a2.1 2.1 0 0 0-3-3l-11 11z"/><path d="M13.5 6.5l3 3"/></svg>
+            <span>4 px</span>
+          </button>
+        </div>
+        <div class="group-label">Brushes</div>
+      </div>
 
-  <div id="panel" class="panel">
-    <div class="panel-section">
-      <div class="label">Stroke</div>
-      <div class="swatches">
-        <button class="swatch active" data-stroke="#1e1e1e" style="--c:#1e1e1e" title="Black"></button>
-        <button class="swatch" data-stroke="#e03131" style="--c:#e03131" title="Red"></button>
-        <button class="swatch" data-stroke="#2f9e44" style="--c:#2f9e44" title="Green"></button>
-        <button class="swatch" data-stroke="#1971c2" style="--c:#1971c2" title="Blue"></button>
-        <button class="swatch" data-stroke="#f08c00" style="--c:#f08c00" title="Orange"></button>
+      <div class="group">
+        <div class="group-body shapes">
+          <button class="tool shape-btn" data-tool="line" title="Line (L)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4.5 19.5L19.5 4.5"/></svg>
+          </button>
+          <button class="tool shape-btn" data-tool="rectangle" title="Rectangle (R)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="5.5" width="16" height="13"/></svg>
+          </button>
+          <button class="tool shape-btn" data-tool="ellipse" title="Ellipse (O)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.4"/></svg>
+          </button>
+          <button class="tool shape-btn" data-tool="diamond" title="Diamond (D)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3.2l8.8 8.8-8.8 8.8L3.2 12z"/></svg>
+          </button>
+          <button class="tool shape-btn" data-tool="arrow" title="Arrow (A)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L20 4"/><path d="M20 4h-6.5M20 4v6.5"/></svg>
+          </button>
+        </div>
+        <div class="group-label">Shapes</div>
+      </div>
+
+      <div class="group">
+        <div class="group-body col">
+          <button data-width="1" class="line-choice" title="Thin stroke"><span style="height:1px"></span></button>
+          <button data-width="2" class="line-choice active" title="Medium stroke"><span style="height:2px"></span></button>
+          <button data-width="4" class="line-choice" title="Thick stroke"><span style="height:4px"></span></button>
+        </div>
+        <div class="group-label">Size</div>
+      </div>
+
+      <div class="group">
+        <div class="group-body col">
+          <button data-fill="hachure" class="fill-choice active" title="Hachure fill">Hachure</button>
+          <button data-fill="cross" class="fill-choice" title="Cross fill">Cross</button>
+          <button data-fill="solid" class="fill-choice" title="Solid fill">Solid</button>
+        </div>
+        <div class="group-label">Fill</div>
+      </div>
+
+      <div class="group">
+        <div class="group-body color-body">
+          <div class="color-stack" title="Color 1 and Color 2">
+            <span id="color-1" class="color-square color-front"></span>
+            <span id="color-2" class="color-square color-back"></span>
+          </div>
+          <div class="palettes">
+            <div class="palette">
+              <button class="swatch active" data-stroke="#1e1e1e" style="--c:#1e1e1e" title="Black"></button>
+              <button class="swatch" data-stroke="#7f7f7f" style="--c:#7f7f7f" title="Gray"></button>
+              <button class="swatch" data-stroke="#880015" style="--c:#880015" title="Dark red"></button>
+              <button class="swatch" data-stroke="#ed1c24" style="--c:#ed1c24" title="Red"></button>
+              <button class="swatch" data-stroke="#ff7f27" style="--c:#ff7f27" title="Orange"></button>
+              <button class="swatch" data-stroke="#fff200" style="--c:#fff200" title="Yellow"></button>
+              <button class="swatch" data-stroke="#22b14c" style="--c:#22b14c" title="Green"></button>
+              <button class="swatch" data-stroke="#00a2e8" style="--c:#00a2e8" title="Cyan"></button>
+              <button class="swatch" data-stroke="#3f48cc" style="--c:#3f48cc" title="Blue"></button>
+              <button class="swatch" data-stroke="#a349a4" style="--c:#a349a4" title="Purple"></button>
+            </div>
+            <div class="palette">
+              <button class="swatch transparent active" data-bg="transparent" title="Transparent background"></button>
+              <button class="swatch" data-bg="#ffffff" style="--c:#ffffff" title="White"></button>
+              <button class="swatch" data-bg="#c3c3c3" style="--c:#c3c3c3" title="Light gray"></button>
+              <button class="swatch" data-bg="#b97a57" style="--c:#b97a57" title="Brown"></button>
+              <button class="swatch" data-bg="#ffaec9" style="--c:#ffaec9" title="Pink"></button>
+              <button class="swatch" data-bg="#ffc90e" style="--c:#ffc90e" title="Gold"></button>
+              <button class="swatch" data-bg="#efe4b0" style="--c:#efe4b0" title="Sand"></button>
+              <button class="swatch" data-bg="#b5e61d" style="--c:#b5e61d" title="Lime"></button>
+              <button class="swatch" data-bg="#99d9ea" style="--c:#99d9ea" title="Sky"></button>
+              <button class="swatch" data-bg="#c8bfe7" style="--c:#c8bfe7" title="Lavender"></button>
+            </div>
+          </div>
+        </div>
+        <div class="group-label">Colors</div>
       </div>
     </div>
-    <div class="panel-section">
-      <div class="label">Background</div>
-      <div class="swatches">
-        <button class="swatch transparent active" data-bg="transparent" title="Transparent"></button>
-        <button class="swatch" data-bg="#ffc9c9" style="--c:#ffc9c9" title="Light red"></button>
-        <button class="swatch" data-bg="#b2f2bb" style="--c:#b2f2bb" title="Light green"></button>
-        <button class="swatch" data-bg="#a5d8ff" style="--c:#a5d8ff" title="Light blue"></button>
-        <button class="swatch" data-bg="#ffec99" style="--c:#ffec99" title="Light yellow"></button>
+
+    <main class="canvas-wrap">
+      <canvas id="board" aria-label="Drawing canvas"></canvas>
+    </main>
+
+    <footer class="statusbar">
+      <div id="hint" class="status-hint">
+        Hold <kbd>Scroll</kbd> or <kbd>Space</kbd> to pan · <kbd>Ctrl</kbd> + <kbd>Wheel</kbd> to zoom
       </div>
-    </div>
-    <div class="panel-section">
-      <div class="label">Fill</div>
-      <div class="segmented">
-        <button data-fill="hachure" class="active">Hachure</button>
-        <button data-fill="cross">Cross</button>
-        <button data-fill="solid">Solid</button>
+      <div id="live" class="live-chip hidden" title="Live collaboration">
+        <span class="live-dot"></span><span id="live-label">Live</span>
       </div>
-    </div>
-    <div class="panel-section">
-      <div class="label">Stroke width</div>
-      <div class="segmented widths">
-        <button data-width="1" title="Thin"><span style="height:1px"></span></button>
-        <button data-width="2" class="active" title="Medium"><span style="height:2px"></span></button>
-        <button data-width="4" title="Bold"><span style="height:4px"></span></button>
+      <div class="zoom-group">
+        <span class="zoom-caption">Zoom</span>
+        <button id="zoom-out" title="Zoom out" aria-label="Zoom out">−</button>
+        <span id="zoom-label">100%</span>
+        <button id="zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+        <button id="zoom-reset" title="Zoom to fit" aria-label="Zoom to fit">Fit</button>
       </div>
-    </div>
-    <div class="panel-section">
-      <div class="label">Font size</div>
-      <div class="segmented">
-        <button data-font="16" title="Small">S</button>
-        <button data-font="20" class="active" title="Medium">M</button>
-        <button data-font="28" title="Large">L</button>
-      </div>
-    </div>
-    <div class="panel-actions">
-      <button data-action="duplicate" class="ghost">Duplicate</button>
-      <button data-action="delete" class="ghost danger">Delete</button>
-    </div>
+    </footer>
   </div>
 
   <div id="main-menu" class="menu" role="menu">
@@ -157,6 +238,7 @@
     <button data-action="png"><span>Export PNG</span></button>
     <button data-action="svg"><span>Export SVG</span></button>
     <button data-action="share"><span>Copy share link</span></button>
+    <button data-action="collab"><span>Edit together live</span></button>
     <div class="menu-sep"></div>
     <button data-action="grid"><span>Toggle grid</span></button>
     <button data-action="clear"><span>Clear canvas</span></button>
@@ -170,6 +252,17 @@
     <div class="menu-note">Forme — Rust + WebAssembly</div>
   </div>
 
+  <div id="context-menu" class="menu context-menu" role="menu">
+    <button id="ctx-cut" data-action="cut"><span>Cut</span><span class="shortcut">Ctrl+X</span></button>
+    <button id="ctx-copy" data-action="copy"><span>Copy</span><span class="shortcut">Ctrl+C</span></button>
+    <button id="ctx-paste" data-action="paste"><span>Paste</span><span class="shortcut">Ctrl+V</span></button>
+    <div class="menu-sep"></div>
+    <button id="ctx-duplicate" data-action="duplicate"><span>Duplicate</span><span class="shortcut">Ctrl+D</span></button>
+    <button id="ctx-delete" data-action="delete"><span>Delete</span><span class="shortcut">Del</span></button>
+    <div class="menu-sep"></div>
+    <button id="ctx-select-all" data-action="select-all"><span>Select all</span><span class="shortcut">Ctrl+A</span></button>
+  </div>
+
   <div id="toast" class="toast" role="status"></div>
 
   <textarea id="text-editor" spellcheck="false" autocomplete="off" aria-label="Text editor"></textarea>
@@ -179,7 +272,7 @@
 
   <dialog id="help-dialog">
     <h2>Forme</h2>
-    <p class="dialog-sub">A local-first whiteboard. Everything stays in your browser.</p>
+    <p class="dialog-sub">A local-first whiteboard. Drawings stay in your browser; start Live to edit together.</p>
     <div class="shortcuts">
       <div><kbd>V</kbd><span>Selection</span></div>
       <div><kbd>H</kbd><span>Hand / pan</span></div>
@@ -196,12 +289,38 @@
       <div><kbd>Ctrl</kbd> + <kbd>Z</kbd><span>Undo</span></div>
       <div><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd><span>Redo</span></div>
       <div><kbd>Ctrl</kbd> + <kbd>A</kbd><span>Select all</span></div>
+      <div><kbd>Ctrl</kbd> + <kbd>C</kbd><span>Copy selection</span></div>
+      <div><kbd>Ctrl</kbd> + <kbd>V</kbd><span>Paste</span></div>
       <div><kbd>Ctrl</kbd> + <kbd>D</kbd><span>Duplicate</span></div>
       <div><kbd>Delete</kbd><span>Delete selection</span></div>
       <div><kbd>0</kbd><span>Reset zoom</span></div>
+      <div><kbd>Live</kbd><span>Edit together with shared cursors</span></div>
     </div>
     <form method="dialog"><button class="close-btn" id="help-close">Close</button></form>
   </dialog>
+
+  <script>
+    (() => {
+      const tabs = [...document.querySelectorAll('.ribbon-tab')];
+      const home = document.getElementById('home-tab');
+      const activate = (tab) => tabs.forEach((t) => t.classList.toggle('active', t === tab));
+      tabs.forEach((tab) => {
+        tab.addEventListener('click', () => {
+          activate(tab);
+          if (tab.id !== 'menu-btn' && tab.id !== 'more-btn') {
+            setTimeout(() => {
+              document.querySelectorAll('.menu.open').forEach((m) => m.classList.remove('open'));
+            }, 0);
+          }
+        });
+      });
+      document.addEventListener('pointerdown', (event) => {
+        if (event.target.closest('.ribbon-tab, .menu, dialog')) return;
+        activate(home);
+        document.querySelectorAll('.menu.open').forEach((m) => m.classList.remove('open'));
+      });
+    })();
+  </script>
 
   <script type="module">
     import init, { start } from './pkg/forme.js';
