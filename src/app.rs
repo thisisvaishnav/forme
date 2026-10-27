@@ -118,6 +118,7 @@ struct Collab {
     last_cursor: Option<Pt>,
     session_base: u64,
     session_seq: u64,
+    retry_delay: f64,
 }
 
 impl Collab {
@@ -146,6 +147,7 @@ impl Collab {
             last_cursor: None,
             session_base: 0,
             session_seq: 0,
+            retry_delay: 1000.0,
         }
     }
 }
@@ -1527,6 +1529,7 @@ impl App {
             .unwrap_or_else(|| format!("room-{}", random_token(10)));
         self.apply_room_url(&room);
         self.collab.room = room;
+        self.collab.retry_delay = 1000.0;
         self.connect_collab();
         if let Some(ws) = &self.collab.ws {
             let _ = ws;
@@ -1542,11 +1545,11 @@ impl App {
         if self.collab.room.is_empty() {
             return;
         }
+        self.collab.generation = self.collab.generation.wrapping_add(1);
+        let generation = self.collab.generation;
         if let Some(ws) = self.collab.ws.take() {
             let _ = ws.close();
         }
-        self.collab.generation = self.collab.generation.wrapping_add(1);
-        let generation = self.collab.generation;
         self.collab.connected = false;
         self.collab.ready = false;
         self.collab.peers.clear();
@@ -1565,7 +1568,8 @@ impl App {
             .unwrap_or_else(|_| "127.0.0.1:8080".to_string());
         let url = format!("{proto}://{host}/ws?room={}", self.collab.room);
         let Ok(ws) = WebSocket::new(&url) else {
-            self.toast("Could not open live connection");
+            self.toast("Could not open live connection — retrying");
+            self.schedule_reconnect(generation);
             return;
         };
         self.collab.ws = Some(ws.clone());
@@ -1655,6 +1659,7 @@ impl App {
         self.collab.client_id = client_id;
         self.collab.session_base = client_id.saturating_mul(ID_PREFIX);
         self.collab.session_seq = 0;
+        self.collab.retry_delay = 1000.0;
         self.collab.connected = true;
         self.collab.ready = true;
         self.collab.peers = peers
@@ -1808,10 +1813,36 @@ impl App {
         self.sync_ui();
         self.draw();
         if was_live {
-            self.toast("Live collaboration disconnected");
+            self.toast("Live disconnected — reconnecting");
         } else {
-            self.toast("Could not connect to live collaboration");
+            self.toast("Could not connect — retrying");
         }
+        self.schedule_reconnect(generation);
+    }
+
+    fn schedule_reconnect(&mut self, generation: u64) {
+        if self.collab.room.is_empty() {
+            return;
+        }
+        let delay = self.collab.retry_delay.max(500.0);
+        self.collab.retry_delay = (delay * 2.0).min(15_000.0);
+        let weak = self.self_ref.clone();
+        let cb = Closure::<dyn FnMut()>::new(move || {
+            let Some(app) = weak.upgrade() else {
+                return;
+            };
+            let mut app = app.borrow_mut();
+            if app.collab.generation == generation && app.collab.ws.is_none() {
+                app.connect_collab();
+            }
+        });
+        let _ = self
+            .window
+            .set_timeout_with_callback_and_timeout_and_arguments_0(
+                cb.as_ref().unchecked_ref(),
+                delay as i32,
+            );
+        cb.forget();
     }
 
     fn send_cursor(&mut self, cursor: Option<Pt>) {
