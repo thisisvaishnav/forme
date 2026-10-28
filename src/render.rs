@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use js_sys::Array;
-use wasm_bindgen::JsValue;
 use web_sys::{CanvasRenderingContext2d, HtmlImageElement};
 
 use crate::geometry::{is_visible, viewport_rect};
@@ -164,6 +163,33 @@ fn diamond_points(r: Rect) -> Vec<Pt> {
     ]
 }
 
+fn triangle_points(r: Rect) -> Vec<Pt> {
+    let cx = r.x + r.w / 2.0;
+    vec![
+        Pt::new(cx, r.y),
+        Pt::new(r.right(), r.bottom()),
+        Pt::new(r.x, r.bottom()),
+    ]
+}
+
+fn star_points(r: Rect) -> Vec<Pt> {
+    let cx = r.x + r.w / 2.0;
+    let cy = r.y + r.h / 2.0;
+    let rx = (r.w / 2.0).max(0.1);
+    let ry = (r.h / 2.0).max(0.1);
+    let mut pts = Vec::with_capacity(10);
+    for i in 0..10 {
+        let angle = -std::f64::consts::FRAC_PI_2 + (i as f64) * std::f64::consts::PI / 5.0;
+        let (factor_x, factor_y) = if i % 2 == 0 {
+            (rx, ry)
+        } else {
+            (rx * 0.42, ry * 0.42)
+        };
+        pts.push(Pt::new(cx + factor_x * angle.cos(), cy + factor_y * angle.sin()));
+    }
+    pts
+}
+
 fn shape_path(ctx: &CanvasRenderingContext2d, e: &Element) {
     let r = e.bounds();
     match e.kind {
@@ -172,6 +198,22 @@ fn shape_path(ctx: &CanvasRenderingContext2d, e: &Element) {
         }
         Kind::Diamond => {
             let pts = diamond_points(r);
+            ctx.move_to(pts[0].x, pts[0].y);
+            for p in &pts[1..] {
+                ctx.line_to(p.x, p.y);
+            }
+            ctx.close_path();
+        }
+        Kind::Triangle => {
+            let pts = triangle_points(r);
+            ctx.move_to(pts[0].x, pts[0].y);
+            for p in &pts[1..] {
+                ctx.line_to(p.x, p.y);
+            }
+            ctx.close_path();
+        }
+        Kind::Star => {
+            let pts = star_points(r);
             ctx.move_to(pts[0].x, pts[0].y);
             for p in &pts[1..] {
                 ctx.line_to(p.x, p.y);
@@ -292,6 +334,14 @@ fn draw_element(
             let pts = diamond_points(r);
             rough_line(ctx, &pts, true, e.seed, amp, 2);
         }
+        Kind::Triangle => {
+            let pts = triangle_points(r);
+            rough_line(ctx, &pts, true, e.seed, amp, 2);
+        }
+        Kind::Star => {
+            let pts = star_points(r);
+            rough_line(ctx, &pts, true, e.seed, amp, 2);
+        }
         Kind::Ellipse => {
             let pts = ellipse_points(r);
             rough_line(ctx, &pts, true, e.seed, amp, 2);
@@ -349,101 +399,105 @@ fn draw_freehand(ctx: &CanvasRenderingContext2d, points: &[Pt]) {
     ctx.move_to(points[0].x, points[0].y);
     if points.len() == 2 {
         ctx.line_to(points[1].x, points[1].y);
-    } else {
-        for i in 1..points.len() - 1 {
-            let mid = Pt::new(
-                (points[i].x + points[i + 1].x) / 2.0,
-                (points[i].y + points[i + 1].y) / 2.0,
-            );
-            ctx.quadratic_curve_to(points[i].x, points[i].y, mid.x, mid.y);
-        }
-        let last = points[points.len() - 1];
+        ctx.stroke();
+        return;
+    }
+    for i in 1..points.len() - 1 {
+        let mid_x = (points[i].x + points[i + 1].x) / 2.0;
+        let mid_y = (points[i].y + points[i + 1].y) / 2.0;
+        ctx.quadratic_curve_to(points[i].x, points[i].y, mid_x, mid_y);
+    }
+    if let Some(last) = points.last() {
         ctx.line_to(last.x, last.y);
     }
     ctx.stroke();
 }
 
 fn draw_text(ctx: &CanvasRenderingContext2d, e: &Element) {
-    if e.text.is_empty() {
-        return;
-    }
     ctx.save();
     ctx.set_global_alpha((e.style.opacity / 100.0).clamp(0.05, 1.0));
     ctx.set_font(&format!("{}px {}", e.style.font, FONT));
     ctx.set_fill_style_str(&e.style.stroke);
     ctx.set_text_baseline("top");
+    let line_height = e.style.font * 1.25;
     for (i, line) in e.text.split('\n').enumerate() {
-        let _ = ctx.fill_text(line, e.x, e.y + i as f64 * e.style.font * 1.25);
+        let _ = ctx.fill_text(line, e.x, e.y + i as f64 * line_height);
     }
     ctx.restore();
 }
 
-pub fn handle_rects(bounds: Rect, zoom: f64) -> Vec<Rect> {
-    let s = 9.0 / zoom;
+pub fn handle_rects(r: Rect, zoom: f64) -> [Rect; 8] {
+    let s = (8.0 / zoom).clamp(5.0, 16.0);
     let half = s / 2.0;
-    let cx = bounds.x + bounds.w / 2.0;
-    let cy = bounds.y + bounds.h / 2.0;
-    let positions = [
-        (bounds.x, bounds.y),
-        (cx, bounds.y),
-        (bounds.right(), bounds.y),
-        (bounds.right(), cy),
-        (bounds.right(), bounds.bottom()),
-        (cx, bounds.bottom()),
-        (bounds.x, bounds.bottom()),
-        (bounds.x, cy),
-    ];
-    positions
-        .iter()
-        .map(|(x, y)| Rect::from_xywh(x - half, y - half, s, s))
-        .collect()
+    let cx = r.x + r.w / 2.0;
+    let cy = r.y + r.h / 2.0;
+    [
+        Rect::from_xywh(r.x - half, r.y - half, s, s),
+        Rect::from_xywh(cx - half, r.y - half, s, s),
+        Rect::from_xywh(r.right() - half, r.y - half, s, s),
+        Rect::from_xywh(r.right() - half, cy - half, s, s),
+        Rect::from_xywh(r.right() - half, r.bottom() - half, s, s),
+        Rect::from_xywh(cx - half, r.bottom() - half, s, s),
+        Rect::from_xywh(r.x - half, r.bottom() - half, s, s),
+        Rect::from_xywh(r.x - half, cy - half, s, s),
+    ]
 }
 
-fn draw_selection(ctx: &CanvasRenderingContext2d, bounds: Rect, zoom: f64) {
+pub fn draw_selection(ctx: &CanvasRenderingContext2d, bounds: Rect, zoom: f64) {
     ctx.save();
     ctx.set_stroke_style_str(SELECT);
     ctx.set_line_width(1.0 / zoom);
-    let dash = Array::new();
-    dash.push(&JsValue::from(5.0 / zoom));
-    dash.push(&JsValue::from(4.0 / zoom));
-    let _ = ctx.set_line_dash(&dash);
-    let b = bounds.inflate(1.0 / zoom);
-    ctx.stroke_rect(b.x, b.y, b.w, b.h);
     let _ = ctx.set_line_dash(&Array::new());
+    ctx.stroke_rect(bounds.x, bounds.y, bounds.w, bounds.h);
 
+    let handles = handle_rects(bounds, zoom);
     ctx.set_fill_style_str("#ffffff");
-    ctx.set_line_width(1.3 / zoom);
-    for h in handle_rects(bounds, zoom) {
+    for h in handles {
         ctx.fill_rect(h.x, h.y, h.w, h.h);
         ctx.stroke_rect(h.x, h.y, h.w, h.h);
     }
     ctx.restore();
 }
 
-pub fn escaping(s: &str) -> String {
+fn escaping(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
+        .replace('\'', "&#39;")
 }
 
-pub fn to_svg(elements: &[Element]) -> Option<String> {
+pub fn export_svg(elements: &[Element], bg: &str) -> Option<String> {
     if elements.is_empty() {
         return None;
     }
-    let mut bounds = elements[0].bounds();
-    for e in &elements[1..] {
-        bounds = bounds.union(&e.bounds());
+    let mut min_x = f64::MAX;
+    let mut min_y = f64::MAX;
+    let mut max_x = f64::MIN;
+    let mut max_y = f64::MIN;
+    for e in elements {
+        let b = e.bounds();
+        min_x = min_x.min(b.x);
+        min_y = min_y.min(b.y);
+        max_x = max_x.max(b.right());
+        max_y = max_y.max(b.bottom());
     }
-    let pad = 24.0;
-    let x = bounds.x - pad;
-    let y = bounds.y - pad;
-    let w = bounds.w + pad * 2.0;
-    let h = bounds.h + pad * 2.0;
+    let pad = 32.0;
+    min_x -= pad;
+    min_y -= pad;
+    let w = (max_x - min_x + pad).max(64.0);
+    let h = (max_y - min_y + pad).max(64.0);
 
     let mut out = format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{w:.0}\" height=\"{h:.0}\" viewBox=\"{x:.2} {y:.2} {w:.2} {h:.2}\"><rect x=\"{x:.2}\" y=\"{y:.2}\" width=\"{w:.2}\" height=\"{h:.2}\" fill=\"#ffffff\"/>"
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"{:.2} {:.2} {:.2} {:.2}\" width=\"{:.2}\" height=\"{:.2}\">",
+        min_x, min_y, w, h, w, h
     );
+    if bg != "transparent" && !bg.is_empty() {
+        out.push_str(&format!(
+            "<rect x=\"{:.2}\" y=\"{:.2}\" width=\"{:.2}\" height=\"{:.2}\" fill=\"{}\"/>",
+            min_x, min_y, w, h, bg
+        ));
+    }
 
     for e in elements {
         let r = e.bounds();
@@ -489,6 +543,27 @@ pub fn to_svg(elements: &[Element]) -> Option<String> {
                     "<polygon points=\"{p}\" fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"{sw}\" opacity=\"{opacity}\"/>"
                 ));
             }
+            Kind::Triangle => {
+                let pts = triangle_points(r);
+                let p = format!(
+                    "{:.2},{:.2} {:.2},{:.2} {:.2},{:.2}",
+                    pts[0].x, pts[0].y, pts[1].x, pts[1].y, pts[2].x, pts[2].y
+                );
+                out.push_str(&format!(
+                    "<polygon points=\"{p}\" fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"{sw}\" stroke-linejoin=\"round\" opacity=\"{opacity}\"/>"
+                ));
+            }
+            Kind::Star => {
+                let pts = star_points(r);
+                let p = pts
+                    .iter()
+                    .map(|pt| format!("{:.2},{:.2}", pt.x, pt.y))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                out.push_str(&format!(
+                    "<polygon points=\"{p}\" fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"{sw}\" stroke-linejoin=\"round\" opacity=\"{opacity}\"/>"
+                ));
+            }
             Kind::Ellipse => out.push_str(&format!(
                 "<ellipse cx=\"{:.2}\" cy=\"{:.2}\" rx=\"{:.2}\" ry=\"{:.2}\" fill=\"{}\" stroke=\"{}\" stroke-width=\"{}\" opacity=\"{}\"/>",
                 r.x + r.w / 2.0,
@@ -505,8 +580,8 @@ pub fn to_svg(elements: &[Element]) -> Option<String> {
                     let a = e.points[0];
                     let b = e.points[e.points.len() - 1];
                     out.push_str(&format!(
-                        "<line x1=\"{:.2}\" y1=\"{:.2}\" x2=\"{:.2}\" y2=\"{:.2}\" stroke=\"{stroke}\" stroke-width=\"{sw}\" stroke-linecap=\"round\" opacity=\"{opacity}\"/>",
-                        a.x, a.y, b.x, b.y
+                        "<line x1=\"{:.2}\" y1=\"{:.2}\" x2=\"{:.2}\" y2=\"{:.2}\" stroke=\"{}\" stroke-width=\"{}\" stroke-linecap=\"round\" opacity=\"{}\"/>",
+                        a.x, a.y, b.x, b.y, stroke, sw, opacity
                     ));
                     if e.kind == Kind::Arrow {
                         let angle = (b.y - a.y).atan2(b.x - a.x);
@@ -521,8 +596,8 @@ pub fn to_svg(elements: &[Element]) -> Option<String> {
                             b.y - len * (angle + spread).sin(),
                         );
                         out.push_str(&format!(
-                            "<polyline points=\"{:.2},{:.2} {:.2},{:.2} {:.2},{:.2}\" fill=\"none\" stroke=\"{stroke}\" stroke-width=\"{sw}\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\"{opacity}\"/>",
-                            p1.0, p1.1, b.x, b.y, p2.0, p2.1
+                            "<polyline points=\"{:.2},{:.2} {:.2},{:.2} {:.2},{:.2}\" fill=\"none\" stroke=\"{}\" stroke-width=\"{}\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\"{}\"/>",
+                            p1.0, p1.1, b.x, b.y, p2.0, p2.1, stroke, sw, opacity
                         ));
                     }
                 }
@@ -535,18 +610,20 @@ pub fn to_svg(elements: &[Element]) -> Option<String> {
                         .map(|p| format!("{:.2},{:.2}", p.x, p.y))
                         .collect();
                     out.push_str(&format!(
-                        "<polyline points=\"{}\" fill=\"none\" stroke=\"{stroke}\" stroke-width=\"{sw}\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\"{opacity}\"/>",
-                        points.join(" ")
+                        "<polyline points=\"{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"{}\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\"{}\"/>",
+                        points.join(" "), stroke, sw, opacity
                     ));
                 }
             }
             Kind::Text => {
                 for (i, line) in e.text.split('\n').enumerate() {
                     out.push_str(&format!(
-                        "<text x=\"{:.2}\" y=\"{:.2}\" font-family=\"Caveat, Comic Sans MS, cursive\" font-size=\"{}\" fill=\"{stroke}\" opacity=\"{opacity}\">{}</text>",
+                        "<text x=\"{:.2}\" y=\"{:.2}\" font-family=\"Caveat, Comic Sans MS, cursive\" font-size=\"{}\" fill=\"{}\" opacity=\"{}\">{}</text>",
                         e.x,
                         e.y + e.style.font + i as f64 * e.style.font * 1.25,
                         e.style.font,
+                        stroke,
+                        opacity,
                         escaping(line)
                     ));
                 }

@@ -86,6 +86,8 @@ pub enum Kind {
     Draw,
     Text,
     Image,
+    Triangle,
+    Star,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -259,6 +261,10 @@ pub enum Tool {
     Text,
     Image,
     Eraser,
+    Triangle,
+    Star,
+    Picker,
+    Fill,
 }
 
 impl Tool {
@@ -275,6 +281,10 @@ impl Tool {
             "text" => Tool::Text,
             "image" => Tool::Image,
             "eraser" => Tool::Eraser,
+            "triangle" => Tool::Triangle,
+            "star" => Tool::Star,
+            "picker" => Tool::Picker,
+            "fill" => Tool::Fill,
             _ => return None,
         })
     }

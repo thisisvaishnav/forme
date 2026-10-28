@@ -198,6 +198,7 @@ pub struct App {
     selected: Vec<u64>,
     tool: Tool,
     style: Style,
+    color_target: u8,
     zoom: f64,
     pan: Pt,
     history: History,
@@ -236,6 +237,7 @@ impl App {
             selected: Vec::new(),
             tool: Tool::Select,
             style: Style::default(),
+            color_target: 1,
             zoom: 1.0,
             pan: Pt::new(0.0, 0.0),
             history: History::default(),
@@ -276,6 +278,10 @@ impl App {
             Tool::Text => "text",
             Tool::Image => "image",
             Tool::Eraser => "eraser",
+            Tool::Triangle => "triangle",
+            Tool::Star => "star",
+            Tool::Picker => "picker",
+            Tool::Fill => "fill",
         }
     }
 
@@ -479,6 +485,12 @@ impl App {
                 let _ = chip.class_list().add_1("hidden");
             }
         }
+        if let Some(c1_btn) = doc.get_element_by_id("color-1-btn") {
+            set_active(&c1_btn, self.color_target == 1);
+        }
+        if let Some(c2_btn) = doc.get_element_by_id("color-2-btn") {
+            set_active(&c2_btn, self.color_target == 2);
+        }
         if let Some(chip) = doc
             .get_element_by_id("color-1")
             .and_then(|e| e.dyn_into::<HtmlElement>().ok())
@@ -496,6 +508,44 @@ impl App {
             };
             let _ = chip.style().set_property("background", bg);
         }
+        let active_color = if self.color_target == 1 {
+            self.style.stroke.as_str()
+        } else {
+            self.style.bg.as_str()
+        };
+        for el in query_all(&doc, "[data-color]") {
+            let active = el.get_attribute("data-color").as_deref() == Some(active_color);
+            set_active(&el, active);
+        }
+        if let Some(dim) = doc.get_element_by_id("dim-text") {
+            if let Some(b) = self.selection_bounds() {
+                dim.set_text_content(Some(&format!("{:.0} × {:.0}px", b.w.round().abs(), b.h.round().abs())));
+            } else {
+                dim.set_text_content(Some(&format!("{:.0} × {:.0}px", self.css_w.round(), self.css_h.round())));
+            }
+        }
+        if let Some(label) = doc.get_element_by_id("zoom-label") {
+            label.set_text_content(Some(&format!("{:.0}%", self.zoom * 100.0)));
+        }
+        if let Some(slider) = doc
+            .get_element_by_id("zoom-slider")
+            .and_then(|e| e.dyn_into::<HtmlInputElement>().ok())
+        {
+            slider.set_value(&format!("{:.0}", (self.zoom * 100.0).round().clamp(10.0, 400.0)));
+        }
+        if let Some(chk_grid) = doc
+            .get_element_by_id("chk-grid")
+            .and_then(|e| e.dyn_into::<HtmlInputElement>().ok())
+        {
+            chk_grid.set_checked(self.show_grid);
+        }
+        if let Some(chk_lock) = doc
+            .get_element_by_id("chk-lock")
+            .and_then(|e| e.dyn_into::<HtmlInputElement>().ok())
+        {
+            chk_lock.set_checked(self.locked);
+        }
+
         let has_selection = !self.selected.is_empty();
         for id in ["ctx-cut", "ctx-copy", "ctx-duplicate", "ctx-delete"] {
             if let Some(btn) = doc.get_element_by_id(id) {
@@ -517,6 +567,10 @@ impl App {
             "text"
         } else if self.tool == Tool::Select {
             "default"
+        } else if self.tool == Tool::Picker {
+            "crosshair"
+        } else if self.tool == Tool::Fill {
+            "cell"
         } else {
             "crosshair"
         };
@@ -699,16 +753,6 @@ impl App {
                 let _ = el.class_list().remove_1("open");
             }
         }
-        for id in ["menu-btn", "home-tab", "more-btn"] {
-            if let Some(el) = self.document.get_element_by_id(id) {
-                let active = id == "home-tab";
-                if active {
-                    let _ = el.class_list().add_1("active");
-                } else {
-                    let _ = el.class_list().remove_1("active");
-                }
-            }
-        }
     }
 
     fn hide_hint(&self) {
@@ -786,14 +830,23 @@ impl App {
                     self.draw();
                 }
             }
-            Tool::Rectangle | Tool::Diamond | Tool::Ellipse | Tool::Line | Tool::Arrow => {
+            Tool::Rectangle
+            | Tool::Diamond
+            | Tool::Ellipse
+            | Tool::Line
+            | Tool::Arrow
+            | Tool::Triangle
+            | Tool::Star => {
                 let before = self.elements.clone();
                 let kind = match self.tool {
                     Tool::Rectangle => Kind::Rectangle,
                     Tool::Diamond => Kind::Diamond,
                     Tool::Ellipse => Kind::Ellipse,
                     Tool::Line => Kind::Line,
-                    _ => Kind::Arrow,
+                    Tool::Arrow => Kind::Arrow,
+                    Tool::Triangle => Kind::Triangle,
+                    Tool::Star => Kind::Star,
+                    _ => Kind::Rectangle,
                 };
                 let mut el = self.new_element(kind, world.x, world.y);
                 if el.is_linear() {
@@ -809,6 +862,56 @@ impl App {
                 };
                 self.sync_ui();
                 self.draw();
+            }
+            Tool::Picker => {
+                let picked = if let Some(id) = self.hit_test(world) {
+                    if let Some(el) = self.elements.iter().find(|e| e.id == id) {
+                        if el.style.stroke != "transparent" && !el.style.stroke.is_empty() {
+                            el.style.stroke.clone()
+                        } else if el.style.bg != "transparent" && !el.style.bg.is_empty() {
+                            el.style.bg.clone()
+                        } else {
+                            "#1e1e1e".to_string()
+                        }
+                    } else {
+                        "#ffffff".to_string()
+                    }
+                } else {
+                    "#ffffff".to_string()
+                };
+                if self.color_target == 1 {
+                    self.set_style_value("stroke", &picked);
+                } else {
+                    self.set_style_value("bg", &picked);
+                }
+                self.toast(&format!("Picked color {picked}"));
+                if !self.locked {
+                    self.tool = Tool::Select;
+                }
+                self.sync_ui();
+                self.draw();
+            }
+            Tool::Fill => {
+                if let Some(id) = self.hit_test(world) {
+                    let before = self.elements.clone();
+                    let fill_color = if self.color_target == 1 {
+                        self.style.stroke.clone()
+                    } else if self.style.bg != "transparent" && !self.style.bg.is_empty() {
+                        self.style.bg.clone()
+                    } else {
+                        self.style.stroke.clone()
+                    };
+                    if let Some(el) = self.elements.iter_mut().find(|e| e.id == id) {
+                        el.style.bg = fill_color;
+                        el.style.fill = Fill::Solid;
+                    }
+                    self.history.push(before);
+                    self.save();
+                    self.draw();
+                    self.sync_ui();
+                } else {
+                    self.toast("Click on a shape to fill it");
+                }
             }
             Tool::Draw => {
                 let before = self.elements.clone();
@@ -858,6 +961,9 @@ impl App {
         let screen = self.pointer_pos(ev);
         self.pointer = screen;
         let world = self.to_world(screen);
+        if let Some(coords) = self.document.get_element_by_id("coords-text") {
+            coords.set_text_content(Some(&format!("{:.0}, {:.0}px", world.x.round(), world.y.round())));
+        }
         if screen.x >= 0.0 && screen.y >= 0.0 && screen.x <= self.css_w && screen.y <= self.css_h {
             self.send_cursor(Some(world));
         }
@@ -1111,6 +1217,12 @@ impl App {
             .and_then(|e| e.dyn_into::<HtmlDialogElement>().ok())
             .map(|d| d.open())
             .unwrap_or(false)
+            || self
+                .document
+                .get_element_by_id("about-dialog")
+                .and_then(|e| e.dyn_into::<HtmlDialogElement>().ok())
+                .map(|d| d.open())
+                .unwrap_or(false)
         {
             return;
         }
@@ -1184,6 +1296,10 @@ impl App {
             "p" => self.set_tool(Tool::Draw),
             "t" => self.set_tool(Tool::Text),
             "e" => self.set_tool(Tool::Eraser),
+            "k" => self.set_tool(Tool::Picker),
+            "b" | "g" => self.set_tool(Tool::Fill),
+            "s" => self.set_tool(Tool::Star),
+            "m" => self.set_tool(Tool::Triangle),
             "i" => {
                 self.set_tool(Tool::Image);
                 self.open_file_picker("file-image");
@@ -2151,7 +2267,7 @@ impl App {
     }
 
     fn export_svg(&self) {
-        if let Some(svg) = render::to_svg(&self.elements) {
+        if let Some(svg) = render::export_svg(&self.elements, "#ffffff") {
             self.download("forme.svg", "image/svg+xml", svg.as_bytes());
             self.toast("SVG exported");
         } else {
@@ -2276,6 +2392,149 @@ impl App {
         self.fit_content();
         self.sync_ui();
         self.toast("Drawing loaded");
+    }
+
+    fn switch_ribbon_tab(&mut self, tab: &str) {
+        let doc = &self.document;
+        if let Some(home_tab) = doc.get_element_by_id("home-tab") {
+            set_active(&home_tab, tab == "home");
+        }
+        if let Some(view_tab) = doc.get_element_by_id("view-tab") {
+            set_active(&view_tab, tab == "view");
+        }
+        if let Some(ribbon_home) = doc.get_element_by_id("ribbon-home") {
+            if tab == "home" {
+                let _ = ribbon_home.class_list().remove_1("hidden");
+            } else {
+                let _ = ribbon_home.class_list().add_1("hidden");
+            }
+        }
+        if let Some(ribbon_view) = doc.get_element_by_id("ribbon-view") {
+            if tab == "view" {
+                let _ = ribbon_view.class_list().remove_1("hidden");
+            } else {
+                let _ = ribbon_view.class_list().add_1("hidden");
+            }
+        }
+        self.close_menus();
+    }
+
+    fn flip_selected_horizontal(&mut self) {
+        if self.selected.is_empty() {
+            return;
+        }
+        let Some(bounds) = self.selection_bounds() else {
+            return;
+        };
+        let before = self.elements.clone();
+        let mid_x = bounds.x + bounds.w / 2.0;
+        let ids = self.selected.clone();
+        for el in self.elements.iter_mut() {
+            if !ids.contains(&el.id) {
+                continue;
+            }
+            if el.is_linear() {
+                for p in &mut el.points {
+                    p.x = 2.0 * mid_x - p.x;
+                }
+            } else {
+                let old_right = el.x + el.w;
+                el.x = 2.0 * mid_x - old_right;
+            }
+            el.sync_bounds();
+        }
+        self.history.push(before);
+        self.save();
+        self.draw();
+        self.toast("Flipped horizontally");
+    }
+
+    fn flip_selected_vertical(&mut self) {
+        if self.selected.is_empty() {
+            return;
+        }
+        let Some(bounds) = self.selection_bounds() else {
+            return;
+        };
+        let before = self.elements.clone();
+        let mid_y = bounds.y + bounds.h / 2.0;
+        let ids = self.selected.clone();
+        for el in self.elements.iter_mut() {
+            if !ids.contains(&el.id) {
+                continue;
+            }
+            if el.is_linear() {
+                for p in &mut el.points {
+                    p.y = 2.0 * mid_y - p.y;
+                }
+            } else {
+                let old_bottom = el.y + el.h;
+                el.y = 2.0 * mid_y - old_bottom;
+            }
+            el.sync_bounds();
+        }
+        self.history.push(before);
+        self.save();
+        self.draw();
+        self.toast("Flipped vertically");
+    }
+
+    fn rotate_selected_cw(&mut self) {
+        if self.selected.is_empty() {
+            return;
+        }
+        let Some(bounds) = self.selection_bounds() else {
+            return;
+        };
+        let before = self.elements.clone();
+        let center = bounds.center();
+        let ids = self.selected.clone();
+        for el in self.elements.iter_mut() {
+            if !ids.contains(&el.id) {
+                continue;
+            }
+            if el.is_linear() {
+                for p in &mut el.points {
+                    let dx = p.x - center.x;
+                    let dy = p.y - center.y;
+                    p.x = center.x - dy;
+                    p.y = center.y + dx;
+                }
+            } else {
+                let c_el = el.bounds().center();
+                let dx = c_el.x - center.x;
+                let dy = c_el.y - center.y;
+                let new_cx = center.x - dy;
+                let new_cy = center.y + dx;
+                let (nw, nh) = (el.h, el.w);
+                el.w = nw;
+                el.h = nh;
+                el.x = new_cx - nw / 2.0;
+                el.y = new_cy - nh / 2.0;
+            }
+            el.sync_bounds();
+        }
+        self.history.push(before);
+        self.save();
+        self.draw();
+        self.toast("Rotated 90°");
+    }
+
+    fn toggle_fullscreen(&self) {
+        if self.document.fullscreen_element().is_some() {
+            self.document.exit_fullscreen();
+        } else if let Some(el) = self.document.document_element() {
+            let _ = el.request_fullscreen();
+        }
+    }
+
+    fn show_about_dialog(&self) {
+        self.close_menus();
+        if let Some(dialog) = self.document.get_element_by_id("about-dialog") {
+            if let Ok(dialog) = dialog.dyn_into::<HtmlDialogElement>() {
+                let _ = dialog.show_modal();
+            }
+        }
     }
 
     pub fn install(app: &Shared) -> Result<(), JsValue> {
@@ -2474,8 +2733,65 @@ impl App {
             }
         }
 
+        for btn in query_all(&document, "[data-color]") {
+            if let Some(value) = btn.get_attribute("data-color") {
+                let app_click = app.clone();
+                let val_click = value.clone();
+                on::<Event>(&btn, "click", move |_| {
+                    let mut a = app_click.borrow_mut();
+                    let key = if a.color_target == 1 { "stroke" } else { "bg" };
+                    a.set_style_value(key, &val_click);
+                });
+                let app_ctx = app.clone();
+                let val_ctx = value;
+                on::<MouseEvent>(&btn, "contextmenu", move |ev| {
+                    ev.prevent_default();
+                    app_ctx.borrow_mut().set_style_value("bg", &val_ctx);
+                });
+            }
+        }
+
+        if let Some(input) = document.get_element_by_id("edit-color-input") {
+            let app = app.clone();
+            let input_el = input.clone();
+            on::<Event>(&input, "input", move |_| {
+                if let Ok(input) = input_el.clone().dyn_into::<HtmlInputElement>() {
+                    let val = input.value();
+                    let mut a = app.borrow_mut();
+                    let key = if a.color_target == 1 { "stroke" } else { "bg" };
+                    a.set_style_value(key, &val);
+                }
+            });
+        }
+
+        if let Some(slider) = document.get_element_by_id("zoom-slider") {
+            let app = app.clone();
+            let slider_el = slider.clone();
+            on::<Event>(&slider, "input", move |_| {
+                if let Ok(slider) = slider_el.clone().dyn_into::<HtmlInputElement>() {
+                    if let Ok(val) = slider.value().parse::<f64>() {
+                        let mut a = app.borrow_mut();
+                        a.zoom = (val / 100.0).clamp(0.1, 8.0);
+                        a.draw();
+                        a.sync_ui();
+                    }
+                }
+            });
+        }
+
         if let Some(dialog) = document.get_element_by_id("help-dialog") {
             if let Some(close) = document.get_element_by_id("help-close") {
+                let dialog = dialog.clone();
+                on::<Event>(&close, "click", move |_| {
+                    if let Ok(dialog) = dialog.clone().dyn_into::<HtmlDialogElement>() {
+                        dialog.close();
+                    }
+                });
+            }
+        }
+
+        if let Some(dialog) = document.get_element_by_id("about-dialog") {
+            if let Some(close) = document.get_element_by_id("about-close") {
                 let dialog = dialog.clone();
                 on::<Event>(&close, "click", move |_| {
                     if let Ok(dialog) = dialog.clone().dyn_into::<HtmlDialogElement>() {
@@ -2557,6 +2873,48 @@ impl App {
                 self.selected = self.elements.iter().map(|e| e.id).collect();
                 self.sync_ui();
                 self.draw();
+            }
+            "tab-home" => self.switch_ribbon_tab("home"),
+            "tab-view" => self.switch_ribbon_tab("view"),
+            "color-target-1" => {
+                self.color_target = 1;
+                self.sync_ui();
+            }
+            "color-target-2" => {
+                self.color_target = 2;
+                self.sync_ui();
+            }
+            "pick-custom-color" => {
+                if let Some(i) = self.document.get_element_by_id("edit-color-input") {
+                    if let Ok(h) = i.dyn_into::<HtmlElement>() {
+                        h.click();
+                    }
+                }
+            }
+            "flip-h" => {
+                self.close_menus();
+                self.flip_selected_horizontal();
+            }
+            "flip-v" => {
+                self.close_menus();
+                self.flip_selected_vertical();
+            }
+            "rotate-cw" => {
+                self.close_menus();
+                self.rotate_selected_cw();
+            }
+            "fullscreen" => {
+                self.close_menus();
+                self.toggle_fullscreen();
+            }
+            "about" => {
+                self.close_menus();
+                self.show_about_dialog();
+            }
+            "toggle-status" => {
+                if let Some(sb) = self.document.get_element_by_id("statusbar") {
+                    let _ = sb.class_list().toggle("hidden");
+                }
             }
             "help" => {
                 self.close_menus();
