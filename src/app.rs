@@ -557,12 +557,38 @@ impl App {
         )
     }
 
-    fn pointer_pos(&self, ev: &PointerEvent) -> Pt {
+    fn point_from_client(&self, client_x: f64, client_y: f64) -> Pt {
         let rect = self.canvas.get_bounding_client_rect();
-        Pt::new(
-            ev.client_x() as f64 - rect.left(),
-            ev.client_y() as f64 - rect.top(),
-        )
+        Pt::new(client_x - rect.left(), client_y - rect.top())
+    }
+
+    fn pointer_pos(&self, ev: &PointerEvent) -> Pt {
+        self.point_from_client(ev.client_x() as f64, ev.client_y() as f64)
+    }
+
+    fn on_double_click(&mut self, ev: &MouseEvent) {
+        if self.tool != Tool::Select {
+            return;
+        }
+        ev.prevent_default();
+        let world = self.to_world(self.point_from_client(
+            ev.client_x() as f64,
+            ev.client_y() as f64,
+        ));
+        let Some(id) = self.hit_test(world) else {
+            return;
+        };
+        if self
+            .elements
+            .iter()
+            .find(|e| e.id == id)
+            .map(|e| e.kind == Kind::Text)
+            .unwrap_or(false)
+        {
+            let before = self.elements.clone();
+            self.selected = vec![id];
+            self.open_text_editor(id, before, false);
+        }
     }
 
     fn on_context_menu(&mut self, ev: &MouseEvent) {
@@ -673,6 +699,16 @@ impl App {
                 let _ = el.class_list().remove_1("open");
             }
         }
+        for id in ["menu-btn", "home-tab", "more-btn"] {
+            if let Some(el) = self.document.get_element_by_id(id) {
+                let active = id == "home-tab";
+                if active {
+                    let _ = el.class_list().add_1("active");
+                } else {
+                    let _ = el.class_list().remove_1("active");
+                }
+            }
+        }
     }
 
     fn hide_hint(&self) {
@@ -706,19 +742,6 @@ impl App {
 
         match self.tool {
             Tool::Select => {
-                if ev.detail() >= 2 {
-                    if let Some(id) = self.hit_test(world) {
-                        if let Some(e) = self.elements.iter().find(|e| e.id == id) {
-                            if e.kind == Kind::Text {
-                                let before = self.elements.clone();
-                                self.selected = vec![id];
-                                self.open_text_editor(id, before, false);
-                                return;
-                            }
-                        }
-                    }
-                }
-
                 if let Some(bounds) = self.selection_bounds() {
                     if let Some(handle) = self.hit_handle(world, bounds) {
                         let before = self.elements.clone();
@@ -1082,6 +1105,15 @@ impl App {
         if self.is_typing() {
             return;
         }
+        if self
+            .document
+            .get_element_by_id("help-dialog")
+            .and_then(|e| e.dyn_into::<HtmlDialogElement>().ok())
+            .map(|d| d.open())
+            .unwrap_or(false)
+        {
+            return;
+        }
         let key = ev.key();
         let lower = key.to_lowercase();
         let meta = ev.ctrl_key() || ev.meta_key();
@@ -1115,13 +1147,26 @@ impl App {
                 }
                 "c" => self.copy(),
                 "v" => self.paste(),
+                "x" => {
+                    ev.prevent_default();
+                    self.copy();
+                    self.delete_selected();
+                }
                 "d" => {
                     ev.prevent_default();
                     self.duplicate();
                 }
+                "o" => {
+                    ev.prevent_default();
+                    self.open_file_picker("file-open");
+                }
                 "s" => {
                     ev.prevent_default();
                     self.export_json();
+                }
+                "delete" | "backspace" => {
+                    ev.prevent_default();
+                    self.clear_scene();
                 }
                 _ => {}
             }
@@ -1405,12 +1450,12 @@ impl App {
                     el.w = w;
                     el.h = h;
                 }
+                self.selected = vec![id];
             }
             if self.elements != before {
                 self.history.push(before);
                 self.save();
             }
-            self.selected = vec![id];
         }
         if !self.locked {
             self.tool = Tool::Select;
@@ -1947,11 +1992,13 @@ impl App {
 
     pub fn load(&mut self, shared: &Shared) {
         let mut loaded: Option<Scene> = None;
+        let mut from_link = false;
         if let Ok(location) = self.window.location().hash() {
             if let Some(rest) = location.strip_prefix("#s=") {
                 if let Ok(bytes) = URL_SAFE_NO_PAD.decode(rest) {
                     if let Ok(scene) = serde_json::from_slice::<Scene>(&bytes) {
                         loaded = Some(scene);
+                        from_link = true;
                     }
                 }
             }
@@ -1976,6 +2023,10 @@ impl App {
                 if e.kind == Kind::Image && !e.src.is_empty() {
                     self.ensure_image(&e.src, shared);
                 }
+            }
+            if from_link {
+                self.history.clear();
+                self.save();
             }
         }
         self.draw();
@@ -2259,6 +2310,7 @@ impl App {
             ("undo", "undo"),
             ("redo", "redo"),
             ("share", "share"),
+            ("collab", "collab"),
             ("help-btn", "help"),
         ] {
             if let Some(btn) = document.get_element_by_id(id) {
@@ -2346,6 +2398,12 @@ impl App {
         }
         {
             let app = app.clone();
+            on::<MouseEvent>(&canvas, "dblclick", move |ev| {
+                app.borrow_mut().on_double_click(&ev);
+            });
+        }
+        {
+            let app = app.clone();
             on::<PointerEvent>(&canvas, "pointerleave", move |_| {
                 app.borrow_mut().send_cursor(None);
             });
@@ -2395,7 +2453,9 @@ impl App {
             {
                 let app = app.clone();
                 on::<Event>(&editor, "blur", move |_| {
-                    app.borrow_mut().commit_text(false);
+                    if let Ok(mut app) = app.try_borrow_mut() {
+                        app.commit_text(false);
+                    }
                 });
             }
         }
@@ -2499,6 +2559,7 @@ impl App {
                 self.draw();
             }
             "help" => {
+                self.close_menus();
                 if let Some(dialog) = self.document.get_element_by_id("help-dialog") {
                     if let Ok(dialog) = dialog.dyn_into::<HtmlDialogElement>() {
                         let _ = dialog.show_modal();

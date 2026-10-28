@@ -855,6 +855,73 @@ dialog#help-dialog h2 {
   border-color: #4f8fc0;
 }
 
+@media (max-width: 1100px) {
+  .group {
+    padding: 0 2px;
+  }
+
+  .ribbon-btn.tall {
+    width: 48px;
+  }
+
+  .ribbon-btn.row {
+    width: 64px;
+    gap: 4px;
+    padding: 0 4px;
+    font-size: 10.5px;
+  }
+
+  .ribbon-btn.compact {
+    width: 35px;
+    font-size: 9px;
+  }
+
+  .shapes {
+    grid-template-columns: repeat(5, 29px);
+    grid-auto-rows: 29px;
+    gap: 1px;
+  }
+
+  .shape-btn {
+    width: 29px;
+    height: 29px;
+  }
+
+  .line-choice {
+    width: 50px;
+  }
+
+  .line-choice span {
+    width: 28px;
+  }
+
+  .fill-choice {
+    width: 54px;
+  }
+
+  .color-body {
+    gap: 4px;
+  }
+
+  .color-stack {
+    width: 32px;
+  }
+
+  .color-square {
+    width: 22px;
+    height: 22px;
+  }
+
+  .swatch {
+    width: 13px;
+    height: 13px;
+  }
+
+  .palette {
+    gap: 1px;
+  }
+}
+
 @media (max-width: 860px) {
   .qat .qat-btn:nth-of-type(n + 6) {
     display: none;
@@ -893,4 +960,146 @@ dialog#help-dialog h2 {
   .qat .qat-btn:nth-of-type(n + 5) {
     display: none;
   }
+}
+
+
+/* Mobile restriction screen */
+.mobile-guard {
+  display: none;
+}
+
+@media (max-width: 768px), (pointer: coarse) and (max-width: 900px) {
+  .mobile-guard {
+    display: flex !important;
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    background: radial-gradient(circle at center, #1b2838 0%, #0d131a 100%);
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    box-sizing: border-box;
+  }
+
+  .app,
+  .menu,
+  #toast,
+  dialog {
+    display: none !important;
+  }
+}
+
+.is-mobile .mobile-guard {
+  display: flex !important;
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: radial-gradient(circle at center, #1b2838 0%, #0d131a 100%);
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.is-mobile .app,
+.is-mobile .menu,
+.is-mobile #toast,
+.is-mobile dialog {
+  display: none !important;
+}
+
+.mobile-guard-window {
+  width: 100%;
+  max-width: 390px;
+  background: #f0f0f0;
+  border: 1px solid #0078d7;
+  border-radius: 8px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 120, 215, 0.25);
+  overflow: hidden;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #1e1e1e;
+  animation: mobileGuardPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes mobileGuardPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.mobile-guard-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border-bottom: 1px solid #e1e1e1;
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+}
+
+.mobile-guard-icon {
+  display: flex;
+  align-items: center;
+}
+
+.mobile-guard-body {
+  padding: 28px 22px 24px;
+  text-align: center;
+  background: #ffffff;
+}
+
+.mobile-guard-art {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: #f0f6ff;
+  border: 1px solid #d0e2ff;
+  margin-bottom: 16px;
+  color: #0078d7;
+}
+
+.mobile-guard-body h1 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111;
+  letter-spacing: -0.2px;
+}
+
+.mobile-guard-notice {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #c42b1c;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  background: #fdf3f4;
+  border: 1px solid #f6d1d4;
+  border-radius: 6px;
+  line-height: 1.4;
+}
+
+.mobile-guard-desc {
+  font-size: 13px;
+  color: #555;
+  line-height: 1.55;
+  margin: 0 0 10px;
+}
+
+.mobile-guard-footer {
+  padding: 11px 16px;
+  background: #f8f9fa;
+  border-top: 1px solid #e5e5e5;
+  font-size: 11.5px;
+  color: #777;
+  text-align: center;
 }

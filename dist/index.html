@@ -293,14 +293,46 @@
       <div><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd><span>Redo</span></div>
       <div><kbd>Ctrl</kbd> + <kbd>A</kbd><span>Select all</span></div>
       <div><kbd>Ctrl</kbd> + <kbd>C</kbd><span>Copy selection</span></div>
+      <div><kbd>Ctrl</kbd> + <kbd>X</kbd><span>Cut selection</span></div>
       <div><kbd>Ctrl</kbd> + <kbd>V</kbd><span>Paste</span></div>
       <div><kbd>Ctrl</kbd> + <kbd>D</kbd><span>Duplicate</span></div>
+      <div><kbd>Ctrl</kbd> + <kbd>O</kbd><span>Open file</span></div>
+      <div><kbd>Ctrl</kbd> + <kbd>Del</kbd><span>New canvas</span></div>
       <div><kbd>Delete</kbd><span>Delete selection</span></div>
       <div><kbd>0</kbd><span>Reset zoom</span></div>
       <div><kbd>Live</kbd><span>Edit together with shared cursors</span></div>
     </div>
     <form method="dialog"><button class="close-btn" id="help-close">Close</button></form>
   </dialog>
+
+  <div id="mobile-guard" class="mobile-guard" aria-modal="true" role="dialog" aria-labelledby="mobile-guard-title">
+    <div class="mobile-guard-window">
+      <div class="mobile-guard-titlebar">
+        <span class="mobile-guard-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4h7l2.4 2.4H20V20H4z" fill="#ffd8a8" stroke="#8a5a20"/>
+            <path d="M9.2 13.6l5.6-5.6 2.2 2.2-5.6 5.6-2.8.6z" fill="#4dabf7" stroke="#1c6fb0"/>
+          </svg>
+        </span>
+        <span id="mobile-guard-title" class="mobile-guard-title">Forme Paint</span>
+      </div>
+      <div class="mobile-guard-body">
+        <div class="mobile-guard-art" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+        </div>
+        <h1>Desktop Only</h1>
+        <p class="mobile-guard-notice">This application is for a Windows screen.</p>
+        <p class="mobile-guard-desc">Forme is built for keyboard and mouse precision drawing on desktop displays and does not open on mobile devices. Please open this application on a Windows screen.</p>
+      </div>
+      <div class="mobile-guard-footer">
+        Supported display: Windows desktop / widescreen monitors
+      </div>
+    </div>
+  </div>
 
   <script>
     (() => {
@@ -325,12 +357,34 @@
     })();
   </script>
 
+  <script>
+    (() => {
+      const isMobile = () => /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+      const checkMobile = () => {
+        document.documentElement.classList.toggle('is-mobile', isMobile());
+      };
+      checkMobile();
+      window.addEventListener('resize', checkMobile);
+    })();
+  </script>
+
   <script type="module">
     import init, { start } from './pkg/forme.js';
-    init().then(start).catch((err) => {
-      console.error(err);
-      document.body.innerHTML = '<pre style="padding:24px;font:13px monospace;white-space:pre-wrap">Failed to load Forme: ' + err + '</pre>';
-    });
+    const isMobile = () => /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    if (!isMobile()) {
+      init().then(start).catch((err) => {
+        console.error(err);
+        document.body.innerHTML = '<pre style="padding:24px;font:13px monospace;white-space:pre-wrap">Failed to load Forme: ' + err + '</pre>';
+      });
+    } else {
+      window.addEventListener('resize', function checkStart() {
+        if (!isMobile() && !window.__formeStarted) {
+          window.__formeStarted = true;
+          window.removeEventListener('resize', checkStart);
+          init().then(start).catch(console.error);
+        }
+      });
+    }
   </script>
 </body>
 </html>
